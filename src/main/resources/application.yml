@@ -1,0 +1,27 @@
+server:
+  port: 8080
+
+spring:
+  application:
+    name: shandong-mahjong
+  jackson:
+    default-property-inclusion: non_null
+    serialization:
+      write-dates-as-timestamps: true
+
+# 山东麻将自定义配置
+mahjong:
+  # 房间数据文件存储路径（相对于项目根目录）
+  data-dir: ./data/rooms
+  # 存档间隔（秒）
+  auto-save-interval: 5
+  # 玩家出牌超时时间（秒）
+  turn-timeout: 30
+  # 最大房间数
+  max-rooms: 50
+
+logging:
+  level:
+    com.shandong.majong: DEBUG
+  pattern:
+    console: "%d{HH:mm:ss} [%thread] %-5level %logger{36} - %msg%n"

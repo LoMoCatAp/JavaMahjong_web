@@ -1,0 +1,164 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>山东麻将 - 房间</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: "Microsoft YaHei", "PingFang SC", sans-serif;
+            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%);
+            min-height: 100vh;
+            display: flex; justify-content: center; align-items: center;
+        }
+        .container {
+            background: rgba(255,255,255,0.95);
+            border-radius: 16px; padding: 48px 40px;
+            width: 420px; box-shadow: 0 20px 60px rgba(0,0,0,0.4);
+        }
+        .logo {
+            text-align: center; margin-bottom: 36px;
+        }
+        .logo h1 {
+            font-size: 32px; color: #c0392b; letter-spacing: 4px;
+            margin-bottom: 4px;
+        }
+        .logo p { font-size: 13px; color: #888; }
+        .section {
+            margin-bottom: 24px; padding: 20px;
+            border: 1px solid #e0e0e0; border-radius: 10px;
+            background: #fafafa;
+        }
+        .section h2 {
+            font-size: 16px; color: #333; margin-bottom: 14px;
+            padding-bottom: 8px; border-bottom: 2px solid #c0392b;
+        }
+        .input-group { margin-bottom: 12px; }
+        .input-group label {
+            display: block; font-size: 13px; color: #555; margin-bottom: 4px;
+        }
+        .input-group input {
+            width: 100%; padding: 10px 12px; border: 1px solid #ddd;
+            border-radius: 6px; font-size: 15px; outline: none;
+            transition: border-color 0.2s;
+        }
+        .input-group input:focus { border-color: #c0392b; }
+        .btn {
+            width: 100%; padding: 11px; border: none; border-radius: 6px;
+            font-size: 15px; cursor: pointer; font-weight: bold;
+            transition: all 0.2s; margin-top: 4px;
+        }
+        .btn-create { background: #c0392b; color: white; }
+        .btn-create:hover { background: #a93226; }
+        .btn-join  { background: #2c3e50; color: white; }
+        .btn-join:hover  { background: #1a252f; }
+        .btn:disabled { background: #ccc; cursor: not-allowed; }
+        .error { color: #e74c3c; font-size: 13px; margin-top: 8px; display: none; }
+        .tip {
+            margin-top: 16px; font-size: 12px; color: #999; text-align: center;
+            line-height: 1.6;
+        }
+    </style>
+</head>
+<body>
+<div class="container">
+    <div class="logo">
+        <h1>山 东 麻 将</h1>
+        <p>面向对象程序设计（Java）课程设计</p>
+        <p>赵昱轩 202503113030</p>
+    </div>
+
+    <!-- 创建房间 -->
+    <div class="section">
+        <h2>创建房间</h2>
+        <div class="input-group">
+            <label>昵称</label>
+            <input type="text" id="createName" placeholder="输入你的昵称" maxlength="10">
+        </div>
+        <button class="btn btn-create" onclick="createRoom()">创 建 房 间</button>
+    </div>
+
+    <!-- 加入房间 -->
+    <div class="section">
+        <h2>加入房间</h2>
+        <div class="input-group">
+            <label>房间号</label>
+            <input type="text" id="joinRoomId" placeholder="输入6位房间号" maxlength="6" style="text-transform:uppercase">
+        </div>
+        <div class="input-group">
+            <label>昵称</label>
+            <input type="text" id="joinName" placeholder="输入你的昵称" maxlength="10">
+        </div>
+        <button class="btn btn-join" onclick="joinRoom()">加 入 房 间</button>
+    </div>
+
+    <div id="errorMsg" class="error"></div>
+    <div class="tip">
+        提示：创建房间后，将房间号分享给朋友即可加入<br>
+        支持 2-4 人 浏览器打开两个窗口即可测试
+    </div>
+</div>
+
+<script>
+    const API = '';
+
+    function showError(msg) {
+        const el = document.getElementById('errorMsg');
+        el.textContent = msg; el.style.display = 'block';
+        setTimeout(() => el.style.display = 'none', 3000);
+    }
+
+    async function createRoom() {
+        const name = document.getElementById('createName').value.trim();
+        if (!name) { showError('请输入昵称'); return; }
+        try {
+            const resp = await fetch(API + '/api/rooms', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ playerName: name })
+            });
+            const data = await resp.json();
+            if (resp.ok && data.roomId) {
+                localStorage.setItem('playerName', name);
+                localStorage.setItem('roomId', data.roomId);
+                window.location.href = '/game.html';
+            } else {
+                showError(data.error || '创建失败');
+            }
+        } catch (e) {
+            showError('网络错误，请确认服务器已启动');
+        }
+    }
+
+    async function joinRoom() {
+        const roomId = document.getElementById('joinRoomId').value.trim().toUpperCase();
+        const name = document.getElementById('joinName').value.trim();
+        if (!roomId) { showError('请输入房间号'); return; }
+        if (!name) { showError('请输入昵称'); return; }
+        try {
+            const resp = await fetch(API + '/api/rooms/' + roomId + '/join', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ playerName: name })
+            });
+            const data = await resp.json();
+            if (resp.ok && data.roomId) {
+                localStorage.setItem('playerName', name);
+                localStorage.setItem('roomId', data.roomId);
+                window.location.href = '/game.html';
+            } else {
+                showError(data.error || '加入失败');
+            }
+        } catch (e) {
+            showError('网络错误，请确认服务器已启动');
+        }
+    }
+
+    // 回车键快捷操作
+    document.getElementById('createName').addEventListener('keydown', e => { if (e.key==='Enter') createRoom(); });
+    document.getElementById('joinRoomId').addEventListener('keydown', e => { if (e.key==='Enter') document.getElementById('joinName').focus(); });
+    document.getElementById('joinName').addEventListener('keydown', e => { if (e.key==='Enter') joinRoom(); });
+</script>
+</body>
+</html>

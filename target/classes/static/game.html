@@ -1,0 +1,652 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>山东麻将 - 游戏</title>
+<style>
+* { margin:0; padding:0; box-sizing:border-box; }
+body {
+    font-family: "Microsoft YaHei","PingFang SC",sans-serif;
+    background: #0a5c36; height:100vh; overflow:hidden;
+    display:flex; flex-direction:column;
+}
+/* 顶部栏 */
+#topbar {
+    background: rgba(0,0,0,0.7); color:#fff; padding:4px 12px;
+    display:flex; justify-content:space-between; align-items:center;
+    height:36px; font-size:13px; flex-shrink:0;
+}
+#topbar .room-id { color:#f1c40f; font-weight:bold; font-size:15px; }
+#topbar .players { display:flex; gap:8px; }
+#topbar .player-tag {
+    padding:2px 8px; border-radius:10px; font-size:11px;
+    background:rgba(255,255,255,0.15);
+}
+#topbar .player-tag.current { background:#e74c3c; }
+#topbar .player-tag.dealer { border:1px solid #f1c40f; }
+/* 游戏主区域 — 自动填满剩余空间 */
+#game-area {
+    flex:1; display:flex; flex-direction:column;
+    overflow:hidden; min-height:0;
+}
+/* 其他玩家区域 */
+.other-players {
+    display:flex; justify-content:space-around; align-items:center;
+    padding:4px 16px; flex-shrink:0;
+}
+.other-player {
+    text-align:center; color:#fff;
+}
+.other-player .name { font-size:14px; margin-bottom:2px; }
+.other-player .cards-row { display:flex; gap:2px; justify-content:center; flex-wrap:wrap; }
+.other-player .card-back {
+    width:32px; height:44px; background:linear-gradient(135deg,#1a5276,#2980b9);
+    border-radius:3px; border:1px solid #1a5276;
+}
+/* 弃牌区 */
+#discard-zone {
+    flex:1; display:flex; align-items:flex-start; justify-content:center;
+    flex-wrap:wrap; padding:6px; gap:3px; overflow-y:auto; min-height:40px;
+}
+#discard-zone .discard-card {
+    width:40px; height:54px; border-radius:4px;
+    display:flex; align-items:center; justify-content:center;
+    font-size:13px; font-weight:bold; color:#333;
+    background:#f5f5dc; border:1px solid #ccc;
+}
+#discard-zone .discard-card.recent {
+    border:3px solid #e74c3c; box-shadow:0 0 12px rgba(231,76,60,0.6);
+}
+/* 我的手牌区域 */
+#my-hand-zone {
+    padding:4px 12px; flex-shrink:0;
+}
+#my-hand-zone .my-info {
+    color:#fff; font-size:13px; margin-bottom:2px;
+    display:flex; justify-content:space-between;
+}
+#my-hand .card {
+    width:52px; height:72px; border-radius:5px;
+    display:flex; align-items:center; justify-content:center;
+    font-size:16px; font-weight:bold; cursor:pointer;
+    transition:transform 0.15s, box-shadow 0.15s;
+    border:2px solid rgba(0,0,0,0.2); position:relative;
+    color:#333; user-select:none;
+}
+#my-hand .card:hover { transform:translateY(-14px); box-shadow:0 8px 20px rgba(0,0,0,0.3); }
+#my-hand .card.selected { transform:translateY(-18px); box-shadow:0 0 18px #f1c40f; border-color:#f1c40f; }
+#my-hand .card.ting-hint { border-color:#2ecc71; box-shadow:0 0 10px rgba(46,204,113,0.5); }
+/* 牌的花色 */
+.card-wan  { background:linear-gradient(180deg,#fff,#ffe0e0); }
+.card-tiao { background:linear-gradient(180deg,#fff,#e0ffe0); }
+.card-tong { background:linear-gradient(180deg,#fff,#e0e8ff); }
+.card-feng { background:linear-gradient(180deg,#fff,#f0e0ff); }
+.card-jian { background:linear-gradient(180deg,#fff,#fff8dc); }
+/* 副露区 */
+#my-meld-zone {
+    display:flex; gap:6px; align-items:flex-end;
+    min-width:60px; flex-shrink:0;
+}
+.meld-group {
+    display:flex; flex-direction:column; align-items:center; gap:2px;
+}
+.meld-group .meld-label {
+    font-size:10px; color:#f1c40f; background:rgba(0,0,0,0.5);
+    padding:1px 5px; border-radius:3px;
+}
+.meld-group .meld-cards { display:flex; gap:1px; }
+.meld-group .meld-cards .card {
+    width:40px; height:56px; border-radius:4px;
+    display:flex; align-items:center; justify-content:center;
+    font-size:13px; font-weight:bold; cursor:default;
+    border:1px solid rgba(0,0,0,0.3); color:#333;
+}
+/* 手牌+副露整体布局 */
+#my-hand-row {
+    display:flex; align-items:flex-end; gap:8px;
+}
+#my-hand {
+    display:flex; gap:3px; justify-content:center; flex-wrap:wrap; flex:1;
+}
+/* 底部操作栏 */
+#action-bar {
+    height:50px; background:rgba(0,0,0,0.85);
+    display:flex; align-items:center; justify-content:center;
+    gap:6px; padding:4px 8px 8px 8px; flex-shrink:0;
+}
+#action-bar button {
+    padding:8px 14px; border:none; border-radius:6px;
+    font-size:14px; font-weight:bold; cursor:pointer;
+    transition:all 0.2s; min-width:50px;
+}
+#action-bar button:disabled {
+    background:#555 !important; color:#888 !important; cursor:not-allowed;
+}
+.btn-hu   { background:#e74c3c; color:#fff; }
+.btn-gang { background:#8e44ad; color:#fff; }
+.btn-peng { background:#2980b9; color:#fff; }
+.btn-chi  { background:#27ae60; color:#fff; }
+.btn-pass { background:#7f8c8d; color:#fff; }
+.btn-ting { background:#f39c12; color:#fff; }
+.btn-start{ background:#c0392b; color:#fff; }
+/* 吃牌选项栏 */
+#chiOptionsContainer {
+    display:none; justify-content:center; gap:4px;
+    padding:3px 8px; background:rgba(0,0,0,0.5); flex-shrink:0;
+}
+.btn-chi-opt {
+    padding:5px 10px; border:2px solid #555; border-radius:5px;
+    background:#27ae60; color:#fff; font-size:13px; cursor:pointer;
+    transition:all 0.15s; margin:0 2px;
+}
+.btn-chi-opt:hover { border-color:#f1c40f; }
+.btn-chi-opt.selected { border-color:#f1c40f; box-shadow:0 0 8px rgba(241,196,15,0.6); }
+/* 消息提示 */
+#toast {
+    position:fixed; top:46px; left:50%; transform:translateX(-50%);
+    background:rgba(0,0,0,0.9); color:#fff; padding:10px 24px;
+    border-radius:20px; font-size:14px; z-index:100;
+    opacity:0; transition:opacity 0.3s; pointer-events:none;
+}
+#toast.show { opacity:1; }
+#log {
+    position:fixed; right:4px; top:42px; width:160px;
+    max-height:160px; overflow-y:auto;
+    background:rgba(0,0,0,0.6); color:#ccc; font-size:10px;
+    border-radius:4px; padding:4px 6px; line-height:1.4;
+}
+</style>
+</head>
+<body>
+
+<!-- 顶部栏 -->
+<div id="topbar">
+    <div>房间: <span class="room-id" id="roomIdDisplay">---</span></div>
+    <div class="players" id="playerTags"></div>
+    <div id="remainInfo">剩余: --</div>
+</div>
+
+<!-- 游戏主区域 -->
+<div id="game-area">
+    <div class="other-players" id="otherPlayersArea"></div>
+    <div id="discard-zone"></div>
+    <div id="my-hand-zone">
+        <div class="my-info">
+            <span id="myNameDisplay">我</span>
+            <span id="turnHint" style="color:#f1c40f;"></span>
+        </div>
+        <div id="my-hand-row">
+            <div id="my-meld-zone"></div>
+            <div id="my-hand"></div>
+        </div>
+    </div>
+</div>
+
+<!-- 吃牌选项栏（动态显示） -->
+<div id="chiOptionsContainer" style="display:none; justify-content:center; gap:6px; padding:4px 12px; background:rgba(0,0,0,0.5);">
+    <span style="color:#f1c40f; font-size:12px; line-height:28px;">选择吃法：</span>
+    <span id="chiOptionBtns"></span>
+</div>
+
+<!-- 底部操作栏 -->
+<div id="action-bar">
+    <button class="btn-start" id="btnStart" onclick="startGame()">开始游戏</button>
+    <button class="btn-hu"   id="btnHu"   disabled onclick="doAction('HU')">胡</button>
+    <button class="btn-gang" id="btnGang" disabled onclick="doAction('GANG')">杠</button>
+    <button class="btn-peng" id="btnPeng" disabled onclick="doAction('PENG')">碰</button>
+    <button class="btn-chi"  id="btnChi"  disabled onclick="doAction('CHI')">吃</button>
+    <button class="btn-pass" id="btnPass" disabled onclick="doAction('PASS')">过</button>
+    <button class="btn-ting" id="btnTing" disabled onclick="tingHint()">听牌提示</button>
+</div>
+
+<!-- 消息提示 -->
+<div id="toast"></div>
+<div id="log"></div>
+
+<script>
+// 全局状态
+const PLAYER_NAME = localStorage.getItem('playerName') || '玩家';
+const ROOM_ID     = localStorage.getItem('roomId') || '';
+let myHand = [];          // 我的手牌 [{code, display, suit}, ...]
+let myMelds = [];         // 我的副露 [{type, cards: [{code,display,suit},...]}, ...]
+let tingCards = [];       // 当前听牌列表
+let selectedCard = null;  // 选中的手牌索引
+let availableActions = [];// 当前可选操作 ['HU','GANG','PENG','CHI','PASS']
+let chiOptionsList = [];  // 吃牌选项 [{cards, display}, ...]
+let selectedChiIndex = 0; // 选中的吃牌选项索引
+let currentTurnPlayer = '';
+
+// WebSocket 连接
+const protocol = location.protocol === 'https:' ? 'wss:' : 'ws:';
+const wsUrl = protocol + '//' + location.host + '/ws/game';
+let ws;
+
+function connectWS() {
+    ws = new WebSocket(wsUrl);
+    ws.onopen = () => {
+        log('已连接到服务器');
+        document.getElementById('roomIdDisplay').textContent = ROOM_ID;
+        // 自动加入房间
+        sendWS({ action: 'JOIN_ROOM', roomId: ROOM_ID, playerName: PLAYER_NAME });
+    };
+    ws.onmessage = (e) => {
+        try {
+            const msg = JSON.parse(e.data);
+            handleMessage(msg);
+        } catch (err) {}
+    };
+    ws.onclose = () => {
+        log('连接断开，3秒后重连...');
+        setTimeout(connectWS, 3000);
+    };
+    ws.onerror = () => { log('连接错误'); };
+}
+
+function sendWS(data) {
+    if (ws && ws.readyState === WebSocket.OPEN) {
+        ws.send(JSON.stringify(data));
+    }
+}
+
+// 消息处理
+function handleMessage(msg) {
+    switch(msg.type) {
+        case 'ROOM_CREATED':
+        case 'JOINED':
+            document.getElementById('roomIdDisplay').textContent = msg.roomId;
+            updatePlayerTags(msg.players);
+            if (msg.ownerName === PLAYER_NAME) {
+                document.getElementById('btnStart').style.display = 'inline-block';
+            }
+            break;
+        case 'PLAYER_JOINED':
+        case 'PLAYER_LEFT':
+            updatePlayerTags(msg.players);
+            toast((msg.type === 'PLAYER_JOINED' ? '玩家 ' : '') + msg.playerName
+                  + (msg.type === 'PLAYER_JOINED' ? ' 加入了房间' : ' 离开了房间'));
+            break;
+        case 'GAME_STARTED':
+            myHand = (msg.hand || []).map(codeToCard);
+            myMelds = [];  // 清空副露
+            currentTurnPlayer = msg.currentPlayer;
+            document.getElementById('btnStart').style.display = 'none';
+            hideChiOptions();
+            renderMyHand();
+            renderMyMelds();
+            updateOtherPlayers(msg.players);
+            updateRemain(msg.remainCards);
+            updateTurnDisplay();
+            toast('游戏开始！庄家: ' + (msg.dealer || ''));
+            break;
+        case 'GAME_BEGIN':
+            currentTurnPlayer = msg.currentPlayer;
+            updateRemain(msg.remainCards);
+            updateTurnDisplay();
+            break;
+        case 'DRAW':
+            updateRemain(msg.remainCards);
+            break;
+        case 'YOUR_DRAW':
+            myHand = (msg.hand || []).map(codeToCard);
+            renderMyHand();
+            break;
+        case 'YOUR_HAND':
+            // 出牌后服务端推送更新后的手牌
+            myHand = (msg.hand || []).map(codeToCard);
+            renderMyHand();
+            break;
+        case 'PLAY':
+            clearDiscardHighlight();
+            addDiscardCard(msg.card, true);
+            updateRemain(msg.remainCards);
+            if (msg.players) {
+                updatePlayerTags(msg.players);
+                updateOtherPlayers(msg.players);
+            }
+            // 出牌者是本人：移除已出的牌
+            if (msg.player === PLAYER_NAME) {
+                const cardCode = msg.card;
+                const idx = myHand.findIndex(c => c.code === cardCode);
+                if (idx >= 0) myHand.splice(idx, 1);
+                renderMyHand();
+                selectedCard = null;
+            }
+            disableAllActions();
+            hideChiOptions();
+            toast(msg.player + ' 出了 ' + cardDisplay(msg.card));
+            break;
+        case 'ACTION':
+            toast(msg.player + ' '
+                + (msg.action === 'PENG' ? '碰' : msg.action === 'GANG' ? '杠' : '吃') + '了');
+            // ★ 更新我的副露（如果是我自己的操作）
+            if (msg.player === PLAYER_NAME && msg.melds) {
+                myMelds = msg.melds.map(m => ({
+                    type: m.type,
+                    cards: m.cards || []
+                }));
+                renderMyMelds();
+            }
+            if (msg.players) {
+                updatePlayerTags(msg.players);
+                updateOtherPlayers(msg.players);
+            }
+            disableAllActions();
+            hideChiOptions();
+            break;
+        case 'ACTIONS_CANCELLED':
+            // 其他玩家已执行操作，当前玩家的待选操作失效
+            disableAllActions();
+            hideChiOptions();
+            break;
+        case 'AVAILABLE_ACTIONS':
+            if (msg.player === PLAYER_NAME) {
+                availableActions = msg.actions || [];
+                chiOptionsList = msg.chiOptions || [];
+                updateActionButtons();
+                if (chiOptionsList.length > 0) showChiOptions(chiOptionsList);
+            }
+            break;
+        case 'TURN':
+            currentTurnPlayer = msg.player;
+            updateRemain(msg.remainCards);
+            updateTurnDisplay();
+            document.getElementById('btnTing').disabled = (msg.player !== PLAYER_NAME);
+            disableAllActions();
+            hideChiOptions();
+            selectedCard = null;
+            renderMyHand();
+            break;
+        case 'HU':
+            toast('胡牌！' + msg.winner + ' 赢了！');
+            setTimeout(() => alert('胡牌！\n赢家：' + msg.winner + '\n手牌：' + (msg.handDisplay || '')), 300);
+            break;
+        case 'GAME_OVER':
+            toast('游戏结束 - ' + (msg.winner ? msg.winner + '胡牌！' : (msg.reason || '流局')));
+            document.getElementById('btnStart').style.display = 'inline-block';
+            document.getElementById('btnStart').textContent = '再来一局';
+            myMelds = [];  // 清空副露
+            renderMyMelds();
+            disableAllActions();
+            hideChiOptions();
+            break;
+        case 'TING_HINT':
+            tingCards = msg.cards || [];
+            if (tingCards.length === 0) {
+                toast('当前没有听牌 — 手牌距离胡牌还差较多');
+            } else if (myHand.length % 3 === 1) {
+                // 13张：显示等什么牌
+                toast('听 ' + tingCards.length + ' 种牌: ' + (msg.display || []).join(' '));
+            } else {
+                // 14张：显示打哪张能听
+                toast('可打出 ' + tingCards.length + ' 种牌听牌: ' + (msg.display || []).join(' '));
+            }
+            renderMyHand();
+            break;
+        case 'ERROR':
+            toast('错误: ' + msg.message, true);
+            break;
+    }
+}
+
+// UI 更新
+function updatePlayerTags(players) {
+    const el = document.getElementById('playerTags');
+    el.innerHTML = (players || []).map(p => {
+        let cls = 'player-tag';
+        if (p.name === currentTurnPlayer) cls += ' current';
+        if (p.dealer) cls += ' dealer';
+        return '<span class="' + cls + '">' + p.name + ' (' + p.handSize + '张)</span>';
+    }).join('');
+}
+
+function updateOtherPlayers(players) {
+    const el = document.getElementById('otherPlayersArea');
+    const others = (players || []).filter(p => p.name !== PLAYER_NAME);
+    el.innerHTML = others.map(p => {
+        let backs = '';
+        for (let i = 0; i < (p.handSize || 0); i++) {
+            backs += '<div class="card-back"></div>';
+        }
+        let meldInfo = '';
+        if (p.meldCount > 0) {
+            meldInfo = ' <span style="color:#f1c40f;font-size:10px;">副露x' + p.meldCount + '</span>';
+        }
+        return '<div class="other-player">'
+            + '<div class="name">' + p.name + (p.dealer ? ' (庄)' : '') + meldInfo + '</div>'
+            + '<div class="cards-row">' + backs + '</div>'
+            + '</div>';
+    }).join('');
+}
+
+function renderMyHand() {
+    const el = document.getElementById('my-hand');
+    const myName = document.getElementById('myNameDisplay');
+    const total = myHand.length + myMelds.reduce((sum, m) => sum + m.cards.length, 0);
+    myName.textContent = PLAYER_NAME
+        + ' | 手牌:' + myHand.length + '张'
+        + (myMelds.length > 0 ? ' | 副露:' + myMelds.length + '组' : '')
+        + ' | 共' + total + '张';
+
+    el.innerHTML = myHand.map((c, i) => {
+        let cls = 'card card-' + suitClass(c.suit);
+        if (selectedCard === i) cls += ' selected';
+        if (tingCards.includes(c.code)) cls += ' ting-hint';
+        return '<div class="' + cls + '" data-index="' + i + '" onclick="selectCard(' + i + ')">'
+            + c.display + '</div>';
+    }).join('');
+}
+
+function renderMyMelds() {
+    const zone = document.getElementById('my-meld-zone');
+    if (myMelds.length === 0) {
+        zone.innerHTML = '';
+        zone.style.display = 'none';
+        return;
+    }
+    zone.style.display = 'flex';
+
+    const typeLabels = { 'PENG': '碰', 'GANG_MING': '明杠', 'GANG_AN': '暗杠', 'GANG_BU': '补杠', 'CHI': '吃' };
+
+    zone.innerHTML = myMelds.map(m => {
+        const cardDivs = (m.cards || []).map(code => {
+            const c = codeToCard(code);
+            return '<div class="card card-' + suitClass(c.suit) + '">' + c.display + '</div>';
+        }).join('');
+        return '<div class="meld-group">'
+            + '<div class="meld-label">' + (typeLabels[m.type] || m.type) + '</div>'
+            + '<div class="meld-cards">' + cardDivs + '</div>'
+            + '</div>';
+    }).join('');
+}
+
+function addDiscardCard(code, isRecent) {
+    const zone = document.getElementById('discard-zone');
+    const div = document.createElement('div');
+    div.className = 'discard-card' + (isRecent ? ' recent' : '');
+    div.textContent = cardDisplay(code);
+    zone.appendChild(div);
+}
+
+function clearDiscardHighlight() {
+    document.querySelectorAll('#discard-zone .discard-card.recent').forEach(c => c.classList.remove('recent'));
+}
+
+function updateRemain(n) {
+    document.getElementById('remainInfo').textContent = '剩余: ' + (n || '--') + ' 张';
+}
+
+function updateTurnDisplay() {
+    const hint = document.getElementById('turnHint');
+    if (currentTurnPlayer === PLAYER_NAME) {
+        hint.textContent = '轮到你出牌';
+    } else if (currentTurnPlayer) {
+        hint.textContent = '等待 ' + currentTurnPlayer + ' 出牌...';
+    } else {
+        hint.textContent = '';
+    }
+}
+
+function updateActionButtons() {
+    const actions = availableActions;
+    document.getElementById('btnHu').disabled   = !actions.includes('HU');
+    document.getElementById('btnGang').disabled = !actions.includes('GANG');
+    document.getElementById('btnPeng').disabled = !actions.includes('PENG');
+    document.getElementById('btnChi').disabled  = !actions.includes('CHI');
+    document.getElementById('btnPass').disabled = actions.length === 0;
+}
+
+function disableAllActions() {
+    availableActions = [];
+    ['btnHu','btnGang','btnPeng','btnChi','btnPass'].forEach(id => {
+        document.getElementById(id).disabled = true;
+    });
+}
+
+// =========================== 用户操作 ===========================
+function selectCard(index) {
+    // ★ 只有自己的回合且没有待处理操作时才能出牌
+    if (currentTurnPlayer !== PLAYER_NAME) return;
+    if (availableActions.length > 0) return; // 有待处理操作时不能出牌
+
+    if (selectedCard === index) {
+        // 再次点击同一张牌 → 确认出牌
+        const card = myHand[index];
+        sendWS({ action: 'PLAY', card: card.code });
+        selectedCard = null;
+    } else {
+        selectedCard = index;
+    }
+    renderMyHand();
+}
+
+function doAction(action) {
+    if (action === 'CHI') {
+        // ★ CHI 现在通过底部 chiOptions 按钮选择（不再弹窗）
+        // 如果没有选项按钮可见，发送默认 chi
+        sendWS({ action: 'CHI', optionIndex: selectedChiIndex });
+    } else {
+        sendWS({ action: action });
+    }
+    disableAllActions();
+    hideChiOptions();
+}
+
+// 吃牌选项管理
+
+function showChiOptions(options) {
+    chiOptionsList = options;
+    selectedChiIndex = 0;
+    const container = document.getElementById('chiOptionsContainer');
+    const btns = document.getElementById('chiOptionBtns');
+    btns.innerHTML = options.map((opt, i) =>
+        '<button class="btn-chi-opt' + (i === 0 ? ' selected' : '') + '" onclick="selectChiOption(' + i + ')">'
+        + opt.display + '</button>'
+    ).join('');
+    container.style.display = 'flex';
+}
+
+function selectChiOption(index) {
+    selectedChiIndex = index;
+    document.querySelectorAll('.btn-chi-opt').forEach((b, i) => {
+        b.classList.toggle('selected', i === index);
+    });
+    // ★ 点击吃牌选项立即发送（无需再点 CHI 按钮）
+    sendWS({ action: 'CHI', optionIndex: index });
+    disableAllActions();
+    hideChiOptions();
+}
+
+function hideChiOptions() {
+    chiOptionsList = [];
+    selectedChiIndex = 0;
+    document.getElementById('chiOptionsContainer').style.display = 'none';
+}
+
+function startGame() {
+    sendWS({ action: 'START_GAME' });
+}
+
+function tingHint() {
+    sendWS({ action: 'TING_HINT' });
+}
+
+// =========================== 辅助函数 ===========================
+function codeToCard(code) {
+    // 将牌编码转为卡牌对象 { code, display, suit }
+    const displayMap = {
+        'DONG':'东','NAN':'南','XI':'西','BEI':'北',
+        'ZHONG':'中','FA':'发','BAI':'白'
+    };
+    let display, suit;
+    if (displayMap[code]) {
+        display = displayMap[code];
+        suit = ['DONG','NAN','XI','BEI'].includes(code) ? 'feng' : 'jian';
+    } else {
+        const m = code.match(/^(\d+)([WTB])$/);
+        if (m) {
+            const suits = { 'W': '万', 'T': '条', 'B': '筒' };
+            const suitKeys = { 'W': 'wan', 'T': 'tiao', 'B': 'tong' };
+            display = m[1] + suits[m[2]];
+            suit = suitKeys[m[2]];
+        } else {
+            display = code;
+            suit = 'wan';
+        }
+    }
+    return { code, display, suit };
+}
+
+function cardDisplay(code) {
+    return codeToCard(code).display;
+}
+
+function suitClass(suit) {
+    if (suit === 'wan')  return 'wan';
+    if (suit === 'tiao') return 'tiao';
+    if (suit === 'tong') return 'tong';
+    if (suit === 'feng') return 'feng';
+    if (suit === 'jian') return 'jian';
+    return 'wan';
+}
+
+function toast(msg, isError) {
+    const el = document.getElementById('toast');
+    el.textContent = msg;
+    el.style.background = isError ? 'rgba(231,76,60,0.9)' : 'rgba(0,0,0,0.85)';
+    el.classList.add('show');
+    clearTimeout(el._timeout);
+    el._timeout = setTimeout(() => el.classList.remove('show'), 2000);
+}
+
+function log(msg) {
+    const el = document.getElementById('log');
+    const time = new Date().toLocaleTimeString();
+    el.innerHTML += '<div>[' + time + '] ' + msg + '</div>';
+    el.scrollTop = el.scrollHeight;
+}
+
+//初始化
+if (!ROOM_ID || !PLAYER_NAME) {
+    alert('请先从首页创建或加入房间');
+    window.location.href = '/index.html';
+} else {
+    document.getElementById('roomIdDisplay').textContent = ROOM_ID;
+    document.getElementById('myNameDisplay').textContent = PLAYER_NAME;
+    connectWS();
+}
+
+// 键盘快捷键
+document.addEventListener('keydown', (e) => {
+    switch(e.key.toLowerCase()) {
+        case 'h': if (!document.getElementById('btnHu').disabled)   doAction('HU'); break;
+        case 'g': if (!document.getElementById('btnGang').disabled) doAction('GANG'); break;
+        case 'p': if (!document.getElementById('btnPeng').disabled) doAction('PENG'); break;
+        case 'c': if (!document.getElementById('btnChi').disabled)  doAction('CHI'); break;
+        case ' ': if (!document.getElementById('btnPass').disabled) doAction('PASS'); e.preventDefault(); break;
+        case 't': if (!document.getElementById('btnTing').disabled) tingHint(); break;
+    }
+});
+</script>
+</body>
+</html>
