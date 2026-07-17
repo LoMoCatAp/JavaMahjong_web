@@ -1,7 +1,3 @@
-<p align="center">
-  <img src="https://img.shields.io/badge/🀇-麻將-CC0000?style=for-the-badge" height="80" alt="麻将">
-</p>
-
 # 麻将 Web 版
 
 <p align="center">
