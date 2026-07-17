@@ -1,386 +1,272 @@
-# JavaMahjong_Web
+<p align="center">
+  <img src="https://img.shields.io/badge/🀇-麻將-CC0000?style=for-the-badge" height="80" alt="麻将">
+</p>
 
-> **课程**：面向对象程序设计（Java）课程设计
-> **项目类型**：Web 实时多人对战游戏
+# 麻将 Web 版
 
----
+<p align="center">
+  <img src="https://img.shields.io/badge/Java-17-ED8B00?logo=openjdk&logoColor=white" alt="Java 17">
+  <img src="https://img.shields.io/badge/Spring_Boot-3.2.0-6DB33F?logo=springboot&logoColor=white" alt="Spring Boot 3.2">
+  <img src="https://img.shields.io/badge/WebSocket-Real--time-010101?logo=socketdotio&logoColor=white" alt="WebSocket">
+  <img src="https://img.shields.io/badge/Maven-3.9-C71A36?logo=apachemaven&logoColor=white" alt="Maven">
+  <img src="https://img.shields.io/badge/HTML5-CSS3-JS-E34F26?logo=html5&logoColor=white" alt="HTML5 + CSS3 + JS">
+  <img src="https://img.shields.io/badge/JDK-25_compatible-008CDD?logo=openjdk&logoColor=white" alt="JDK 25">
+  <img src="https://img.shields.io/badge/platform-Web-4285F4?logo=googlechrome&logoColor=white" alt="Web">
+</p>
 
-## 目录
+麻将 Web 版是一款基于 **Spring Boot + WebSocket** 的实时多人麻将游戏，支持 **山东推倒胡**玩法。本项目为面向对象程序设计（Java）课程设计项目，采用原生 HTML/CSS/JS 前端，无需安装任何客户端，打开浏览器即可游玩。
 
-- [1. 项目概述](#1-项目概述)
-- [2. 技术栈与选型理由](#2-技术栈与选型理由)
-- [3. 系统架构设计](#3-系统架构设计)
-- [4. 包结构与面向对象设计](#4-包结构与面向对象设计)
-- [5. 核心算法 — 胡牌检测](#5-核心算法--胡牌检测)
-- [6. 实时通信 — WebSocket](#6-实时通信--websocket)
-- [7. 游戏流程与状态机](#7-游戏流程与状态机)
-- [8. 文件持久化与故障恢复](#8-文件持久化与故障恢复)
-- [9. 前端界面设计](#9-前端界面设计)
-- [10. 关键代码走读](#10-关键代码走读)
-- [11. 测试方案](#11-测试方案)
+游戏支持 2–4 人对战，实现了完整的摸牌、出牌、碰、杠、吃、胡牌流程，内置递归回溯胡牌检测算法和 AI 自动对战测试系统。房间状态通过 JSON 文件持久化，服务器重启后自动恢复未完成的对局。
 
----
+## 在线体验
 
-## 1. 项目概述
+<p align="center">
+  <a href="https://lomocat.xyz/games/mahjong/">
+    <img src="https://img.shields.io/badge/🎮-立即游玩-lomocat.xyz-4285F4?style=for-the-badge" alt="在线体验">
+  </a>
+</p>
 
-本项目实现了一个完整的 **Web 版山东推倒胡麻将** 游戏。支持 2~4 人在线对战，包含完整的碰、杠、吃、胡、自摸等操作，以及听牌提示、操作优先级判定等核心功能。
+已部署于阿里云 ECS，支持 HTTPS/WSS 加密通信。
 
-| 功能模块 | 详情 |
-|---------|------|
-| 房间系统 | 创建/加入/离开房间，6位唯一房间号（如 #ABC123） |
-| 游戏流程 | 洗牌→发牌→轮流摸牌出牌→碰/杠/吃判定→胡牌结束 |
-| 操作判定 | HU > GANG > PENG > CHI（只能吃上家），优先规则正确 |
-| 胡牌检测 | 递归回溯拆解法，支持任意数量手牌（14张、17张等） |
-| 听牌提示 | 遍历34种牌模拟胡牌检测，前端高亮可听牌 |
-| 实时通信 | WebSocket 双向 JSON 消息，服务端主动推送 |
-| 文件持久化 | 每5秒自动保存房间状态为 JSON，重启自动恢复 |
-| 自动测试 | 4个AI机器人模拟100局对战，统计胡牌次数 |
+## 功能特性
 
----
+### 房间系统
+- **一键创建房间**：生成 6 位房间码（A–Z + 0–9），分享给好友即可加入
+- **大厅浏览**：查看所有活跃房间，快速加入
+- **房主权限**：仅房主可开始游戏、对局结束后重新开局
 
-## 2. 技术栈与选型理由
+### 游戏玩法
+- **完整山东推倒胡规则**：136 张牌（万/条/筒/风/箭），支持碰、明杠、暗杠、补杠、吃
+- **操作优先级仲裁**：胡 > 杠 > 碰 > 吃，服务端自动判定
+- **实时 WebSocket 通信**：出牌、操作、回合切换零延迟广播
+- **听牌提示**：一键查看当前可听牌型
+- **5 秒操作超时**：超时自动过牌，保证游戏流畅
 
-| 层级 | 技术 | 版本 | 选型理由 |
-|------|------|------|---------|
-| **语言** | Java | 17 | 课设要求；LTS长期支持；switch表达式语法简洁 |
-| **框架** | Spring Boot | 3.2.0 | 嵌入式Tomcat零配置启动；IoC容器管理Bean |
-| **实时通信** | WebSocket | Spring内置 | 麻将需实时交互（出牌/碰杠），短轮询延迟太高 |
-| **序列化** | Jackson | 2.15 | Spring Boot内置；Java对象与JSON双向映射 |
-| **持久化** | JSON文件 | - | 满足课设"文件存储"要求；零额外依赖 |
-| **前端** | HTML+CSS+JS | 原生ES6 | 无框架依赖；课设报告易解释；代码量可控 |
+### 智能与测试
+- **AI 自动对战**：内置 4 机器人模拟完整牌局，可运行 N 局压力测试
+- **自动测试接口**：`POST /api/test?games=100` 一键验证程序稳定性
 
----
+### 数据持久化
+- **自动存档**：每 5 秒自动保存房间状态
+- **崩溃恢复**：服务器重启后扫描 `data/rooms/` 恢复所有未完成房间
+- **关键操作即时存档**：出牌、碰杠吃胡后立即保存
 
-## 3. 系统架构设计
+## 快速开始
 
-```
-浏览器 (Browser)
-  ├── index.html   (登录/创建房间界面)
-  └── game.html    (游戏主界面，WebSocket客户端)
-         │
-    HTTP │ (REST API)          WebSocket │ (实时游戏)
-         ▼                                ▼
-┌─────────────────────────────────────────────────┐
-│              Spring Boot 服务端                  │
-│                                                 │
-│  RoomController          GameWebSocketHandler   │
-│  (房间CRUD接口)           (游戏实时交互)          │
-│       │                       │                 │
-│       ▼                       ▼                 │
-│  RoomManager              GameService           │
-│  (房间管理+持久化)         (胡牌算法+操作判定)     │
-│       │                       │                 │
-│       ▼                       ▼                 │
-│  FileUtil                 CardUtil              │
-│  (JSON文件读写)            (牌工具+洗牌)          │
-│                                                 │
-│  ┌──────────────────────────────────────────┐   │
-│  │         Model 层 (数据实体)               │   │
-│  │  Card / Player / MeldGroup / GameRoom    │   │
-│  └──────────────────────────────────────────┘   │
-│                                                 │
-│  ┌──────────────────────────────────────────┐   │
-│  │      JSON 文件持久化 (./data/rooms/)      │   │
-│  └──────────────────────────────────────────┘   │
-└─────────────────────────────────────────────────┘
+### 环境要求
+
+- **JDK 17+**（兼容 JDK 25）
+- **Maven 3.6+**（项目自带 Maven Wrapper，无需手动安装）
+
+### 启动服务
+
+```bash
+# 克隆仓库
+git clone https://github.com/LoMoCatAp/JavaMahjong_web.git
+cd JavaMahjong_web
+
+# 使用 Maven Wrapper 启动（推荐，无需安装 Maven）
+./mvnw spring-boot:run
+
+# 或者使用系统 Maven
+mvn spring-boot:run
+
+# 打包运行
+mvn clean package -DskipTests
+java -jar target/mahjong-1.0.0.jar
 ```
 
-**数据流概要**：
-1. 用户通过 HTTP 创建/加入房间 → `RoomController` → `RoomManager`
-2. 页面加载后建立 WebSocket 连接 → `GameWebSocketHandler` 绑定玩家Session
-3. 游戏中的所有操作（出牌/碰/杠/胡）全部走 WebSocket 实时通道
-4. 服务端处理游戏逻辑后主动推送消息给房间内所有玩家
-5. `RoomManager` 定时将房间状态序列化为 JSON 写入磁盘
+启动后访问 **http://localhost:8080** 即可进入游戏。
 
----
+### 开始游戏
 
-## 4. 包结构与面向对象设计
+1. 打开浏览器访问 `http://localhost:8080`
+2. 输入昵称，点击「创建房间」
+3. 复制房间号发给朋友（或打开第二个浏览器窗口/隐身窗口）
+4. 其他玩家输入房间号，点击「加入房间」
+5. 房主点击「开始游戏」即可开局
+
+>  使用两个浏览器窗口即可单人测试完整流程。
+
+## 游戏规则
+
+### 牌型组成（136 张）
+
+| 花色 | 牌种 | 数量 |
+|------|------|------|
+| 万 | 1万 – 9万 | 各 4 张，共 36 张 |
+| 条 | 1条 – 9条 | 各 4 张，共 36 张 |
+| 筒 | 1筒 – 9筒 | 各 4 张，共 36 张 |
+| 风牌 | 东、南、西、北 | 各 4 张，共 16 张 |
+| 箭牌 | 中、发、白 | 各 4 张，共 12 张 |
+
+### 基本规则
+
+- 2–4 人对战，每人起始 13 张牌（庄家 14 张）
+- 轮流摸牌出牌，最先组成 **4 面子 + 1 将牌** 者胡牌
+- 面子可以是顺子（同花色连续三张）或刻子（三张相同）
+- 操作优先级：**胡 > 杠 > 碰 > 吃**（吃仅限上家）
+
+### 胡牌算法
+
+采用**递归回溯拆解法**：
+
+1. 将手牌转换为 `int[34]` 计数数组（34 种牌型各几张）
+2. 枚举所有可能的将牌（数量 ≥ 2 的牌型）
+3. 移除将牌后，递归检查剩余牌能否全部拆解为顺子或刻子
+4. 时间复杂度 O(2⁵)，在 34 种牌型上为常数时间
+
+## 项目结构
 
 ```
-com.shandong.majong/
-├── MajongApplication.java       # Spring Boot启动类
-├── model/                       # 实体层 — 数据对象
-│   ├── Card.java                # 牌（34种×4张=136张）
-│   ├── Player.java              # 玩家（手牌/副露/积分/Session）
-│   ├── MeldGroup.java           # 副露组（碰/杠/吃牌组）
-│   └── GameRoom.java            # 游戏房间（状态机/牌墙/玩家管理）
-├── service/                     # 服务层 — 核心逻辑
-│   ├── GameService.java         # 胡牌算法/听牌检测/操作判定/自动测试
-│   └── RoomManager.java         # 房间CRUD/定时存档/恢复/单例模式
-├── controller/                  # 控制层 — 对外接口
-│   ├── RoomController.java      # HTTP REST API
-│   └── GameWebSocketHandler.java# WebSocket实时消息处理
+src/main/java/com/shandong/majong/
+├── MajongApplication.java          # Spring Boot 启动类
+├── model/
+│   ├── Card.java                   # 牌实体（花色、数值、34种编码）
+│   ├── Player.java                 # 玩家实体（手牌、副露、积分）
+│   ├── MeldGroup.java              # 副牌组（碰/杠/吃的牌组）
+│   └── GameRoom.java               # 游戏房间（状态机、牌墙、玩家管理）
+├── service/
+│   ├── GameService.java            # 核心游戏逻辑（胡牌/听牌算法、操作判定）
+│   └── RoomManager.java            # 房间管理器（生命周期、定时存档、恢复）
+├── controller/
+│   ├── RoomController.java         # HTTP REST API（房间 CRUD）
+│   └── GameWebSocketHandler.java   # WebSocket 处理器（实时游戏消息路由）
 ├── config/
-│   └── WebSocketConfig.java     # WebSocket端点注册
-└── util/                        # 工具类
-    ├── CardUtil.java            # 洗牌/计数数组/格式化
-    └── FileUtil.java            # JSON序列化/反序列化/文件管理
+│   └── WebSocketConfig.java        # WebSocket 端点注册
+└── util/
+    ├── CardUtil.java               # 牌工具（洗牌、计数数组、格式化）
+    └── FileUtil.java               # JSON 文件读写（Jackson）
+
+src/main/resources/
+├── application.yml                 # 服务配置（端口、存档、超时）
+└── static/
+    ├── index.html                  # 登录 / 房间大厅页面
+    └── game.html                   # 游戏主界面
+
+data/rooms/                         # 房间 JSON 存档目录（自动生成）
+md/                                 # 各模块详细文档（15 篇）
+.md/                                # 项目总体文档（README / 技术文档 / 答辩问答）
 ```
 
-### 设计原则
+## API 接口
 
-- **单一职责**：每个类只做一件事（Card只管牌数据、GameService只管游戏逻辑）
-- **高内聚低耦合**：Model层不依赖Service，Service通过接口调用Util
-- **面向接口**：WebSocket通过JSON消息协议通信，前后端解耦
-- **状态模式**：GameRoom使用枚举State管理WAITING→READY→PLAYING→FINISHED流转
+| 方法 | 路径 | 说明 |
+|------|------|------|
+| `POST` | `/api/rooms` | 创建房间 |
+| `POST` | `/api/rooms/{roomId}/join` | 加入房间 |
+| `GET` | `/api/rooms/{roomId}` | 查询房间详情 |
+| `GET` | `/api/rooms` | 列出所有活跃房间 |
+| `GET` | `/api/health` | 健康检查 |
+| `POST` | `/api/test?games=N` | 运行 N 局 AI 自动测试 |
 
----
+## WebSocket 协议
 
-## 5. 核心算法 — 胡牌检测
+**连接地址**：`ws://localhost:8080/ws/game`（生产环境 `wss://lomocat.xyz/ws/game`）
 
-### 5.1 数据结构
+### 客户端 → 服务端
 
-将手牌编码为 `int[34]` 计数数组：
-
-```
-索引:  0──8    9──17    18──26   27──30    31──33
-含义:  1万~9万  1条~9条  1筒~9筒  东南西北   中发白
-```
-
-每种牌最多4张，`counts[i]` 表示第 `i` 种牌的数量。这套编码使算法中判断顺子、刻子只需简单索引运算。
-
-### 5.2 算法原理
-
-胡牌 = **4个面子（顺子 或 刻子）+ 1个将牌（雀头）**。算法分两步：
-
-**第一步 — 寻找将牌**：遍历34种牌中 `counts[i] ≥ 2` 的牌种，逐一尝试作为雀头。
-
-**第二步 — 拆解面子**（递归核心）：对移除雀头后的剩余牌，采用"每次消去最小编号牌所在的面子"的策略：
-
-```
-canFormMelds(counts, remaining):
-    若 remaining == 0 → 返回 true（全部拆完）
-    找到第一个 counts[i] > 0 的牌 i：
-        尝试1: 若 counts[i] ≥ 3 → 移除3张作为刻子 → 递归
-        尝试2: 若 i 是数牌(≤26)且 i%9≤6（不跨花色）→ 移除顺子 → 递归
-        若两种都失败 → 返回 false（回溯）
+```json
+{ "action": "CREATE_ROOM",  "playerName": "张三" }
+{ "action": "JOIN_ROOM",    "roomId": "ABC123", "playerName": "李四" }
+{ "action": "START_GAME" }
+{ "action": "PLAY",         "card": "3W" }
+{ "action": "PENG" }
+{ "action": "GANG" }
+{ "action": "CHI",          "card": "4W" }
+{ "action": "HU" }
+{ "action": "PASS" }
+{ "action": "TING_HINT" }
+{ "action": "LEAVE_ROOM" }
 ```
 
-**为什么不跨花色**：`i%9≤6` 确保顺子三张在同一花色内。如索引7（8万），7%9=7>6，不能组成8万+9万+1条。
+### 服务端 → 客户端
 
-### 5.3 复杂度分析
-
-手牌最多17张（14+碰/杠），递归深度 ≤ 5层（4面子+入口），每层最多2分支。时间复杂度 O(2^5) = 常数级，实测单次检测 < 0.1ms。
-
-### 5.4 听牌检测
-
-对34种牌逐一模拟加入手牌后调用胡牌检测。某牌种已有4张则跳过（牌墙中已无此牌）。复杂度 O(34)。
-
----
-
-## 6. 实时通信 — WebSocket
-
-### 6.1 连接建立
-
-```javascript
-// 前端 game.html
-const ws = new WebSocket('ws://localhost:8080/ws/game');
-ws.onopen = () => sendWS({ action: 'JOIN_ROOM', roomId, playerName });
+```json
+{ "type": "ROOM_CREATED",      "roomId": "ABC123" }
+{ "type": "PLAYER_JOINED",     "playerName": "李四", "players": [...] }
+{ "type": "GAME_STARTED",      "hand": ["1W","2W",...], "currentPlayer": "张三" }
+{ "type": "DRAW",              "player": "张三", "card": "3W" }
+{ "type": "PLAY",              "player": "张三", "card": "5T" }
+{ "type": "ACTION",            "player": "李四", "action": "PENG", "card": "5T" }
+{ "type": "TURN",              "player": "李四" }
+{ "type": "AVAILABLE_ACTIONS", "actions": ["HU","PENG","PASS"], "card": "5T" }
+{ "type": "HU",                "winner": "张三" }
+{ "type": "GAME_OVER",         "winner": "张三", "reason": "HU" }
+{ "type": "TING_HINT",         "cards": ["1W","4W"], "display": ["1万","4万"] }
+{ "type": "ERROR",             "message": "房间不存在" }
 ```
+
+## 自动测试
+
+```bash
+# 运行 100 局 AI 自动对战
+curl -X POST http://localhost:8080/api/test?games=100
+```
+
+返回统计结果：总局数、流局数、每位玩家胡牌次数、平均摸牌数、总耗时。AI 策略为优先打出孤张、有碰则碰、可胡则胡。
+
+也可在代码中直接调用：
 
 ```java
-// 后端 WebSocketConfig.java
-registry.addHandler(gameWebSocketHandler, "/ws/game").setAllowedOrigins("*");
+GameService.testAutoPlay(100);  // 4 个 AI 机器人对战 100 局
 ```
 
-### 6.2 消息协议
+## 浏览器快捷键
 
-**客户端 → 服务端**：
+游戏界面支持键盘操作：
 
-| action | 参数 | 说明 |
-|--------|------|------|
-| JOIN_ROOM | roomId, playerName | 绑定WebSocket会话到房间 |
-| START_GAME | - | 房主开始游戏 |
-| PLAY | card: "3W" | 出牌 |
-| PENG | - | 碰 |
-| GANG | - | 杠（明杠/暗杠） |
-| CHI | optionIndex: 0 | 吃（指定选项索引） |
-| HU | - | 胡 |
-| PASS | - | 跳过可选操作 |
-| TING_HINT | - | 查看听什么牌 |
+| 按键 | 操作 |
+|------|------|
+| `H` | 胡 |
+| `G` | 杠 |
+| `P` | 碰 |
+| `C` | 吃 |
+| `Space` | 过（PASS） |
+| `T` | 听牌提示 |
+| 点击手牌后点击打出 | 出牌 |
 
-**服务端 → 客户端**：
+## 配置说明
 
-| type | 关键字段 | 说明 |
-|------|---------|------|
-| GAME_STARTED | hand, currentPlayer, players | 游戏开始，各玩家收到自己的手牌 |
-| DRAW | player | 有人摸牌 |
-| YOUR_DRAW | card, hand | 自己摸到的牌+更新后的手牌 |
-| PLAY | player, card | 有人出牌 |
-| YOUR_HAND | hand | 出牌/碰杠后更新手牌 |
-| ACTION | player, action, melds, players | 碰/杠/吃广播 |
-| AVAILABLE_ACTIONS | actions, chiOptions | 可选操作列表 |
-| ACTIONS_CANCELLED | reason | 操作已失效 |
-| TURN | player, remainCards | 轮到某人出牌 |
-| TING_HINT | cards, display | 听牌列表 |
-| HU | winner, handDisplay | 胡牌 |
-| GAME_OVER | winner/reason | 游戏结束 |
+编辑 `src/main/resources/application.yml`：
 
-### 6.3 并发控制
+```yaml
+mahjong:
+  data-dir: ./data/rooms       # 房间存档目录
+  auto-save-interval: 5        # 自动存档间隔（秒）
+  turn-timeout: 30             # 出牌超时（秒）
+  max-rooms: 50                # 最大房间数
+```
 
-WebSocket handler 中的 `wsSessionMap`（`ConcurrentHashMap<String, WebSocketSession>`）维护所有活跃连接的全局映射，支持按玩家查找Session进行点对点推送。广播时遍历房间所有玩家并发消息。
+## 数据位置
+
+- 房间存档：`./data/rooms/room_XXXXXX.json`
+- 每个 JSON 文件包含完整的房间状态（玩家手牌、牌墙、操作历史），服务器重启后自动恢复。
+
+## 当前限制
+
+- 仅支持山东推倒胡规则，不含花牌、百搭等变体
+- 最大 50 个并发房间，每房间最多 4 人
+- 房间数据仅保存于本地文件系统，未使用外部数据库
+- 前端未适配移动端，建议在桌面浏览器中使用
+
+## 作者
+
+- 在线部署：[lomocat.xyz/games/mahjong](https://lomocat.xyz/games/mahjong/)
+- Bug 与建议：[GitHub Issues](https://github.com/LoMoCatAp/JavaMahjong_web/issues)
+
+
+
+## 许可证
+
+本项目仅用于课程设计学习与交流目的，非商业用途。
 
 ---
 
-## 7. 游戏流程与状态机
+<p align="center">
+  <sub>🀇 🀈 🀉 🀊 🀋 🀌 🀍 🀎 🀏 · 麻将 · 🀇 🀈 🀉 🀊 🀋 🀌 🀍 🀎 🀏</sub>
+</p>
 
-### 7.1 状态机
-
-```
-WAITING ──(人满/准备)──→ READY ──(房主点击开始)──→ PLAYING ──(胡牌/流局)──→ FINISHED
-    ↑                                                                           │
-    └────────────────────────(房主点击再来一局)──────────────────────────────────┘
-```
-
-### 7.2 回合流程
-
-```
-Player A 出牌
-    │
-    ▼
-服务端 checkAvailableActions(A, 弃牌)
-    │
-    ├── 有人能胡/杠/碰/吃 ──→ 发送 AVAILABLE_ACTIONS 给对应玩家
-    │                              │
-    │                     ┌───────┼───────┐
-    │                     ▼       ▼       ▼
-    │                   胡牌    杠/碰    吃(仅下家)
-    │                     │       │       │
-    │                     ▼       ▼       ▼
-    │                   游戏   执行操作  执行操作
-    │                   结束   取消他人   取消他人
-    │                         轮到该玩家 轮到该玩家
-    │                         出牌       出牌
-    │
-    └── 没人能操作 ──→ advanceToNextPlayer
-                            │
-                            ▼
-                     下一家摸牌 → TURN 广播
-                            │
-                            ▼
-                      下一家出牌 → 循环
-```
-
-### 7.3 防止同一人多次出牌
-
-出牌后设 `currentPlayerIndex = -1`（回合锁定状态）。`handlePlay` 方法严格检查 `currentPlayerIndex >= 0` 且玩家名匹配当前回合玩家，否则拒绝出牌。碰/杠/吃操作完成后通过 `setCurrentPlayer` 恢复回合。
-
-### 7.4 操作冲突处理
-
-当多个玩家同时对一张弃牌有操作意向时，按优先级 HU > GANG > PENG > CHI 处理。第一个提交的有效操作即被执行，同时通过 `ACTIONS_CANCELLED` 通知其他玩家其操作已失效。
-
----
-
-## 8. 文件持久化与故障恢复
-
-### 8.1 存储方案
-
-- 位置：`./data/rooms/room_{房间号}.json`
-- 格式：Jackson 将 `GameRoom` 对象序列化为美化 JSON（包含房间号、玩家列表、手牌数组、牌墙状态等）
-- 时机：每5秒自动保存 + 每次关键操作（出牌/碰/杠/胡/流局）后即时保存
-
-### 8.2 实现
-
-```java
-// RoomManager.java — 定时存档
-@PostConstruct
-public void init() {
-    saveScheduler.scheduleWithFixedDelay(this::saveAllRooms, 5, 5, TimeUnit.SECONDS);
-}
-
-// 关键操作后即时保存
-public void saveRoom(GameRoom room) {
-    FileUtil.saveToFile(room, "room_" + room.getRoomId() + ".json");
-}
-```
-
-### 8.3 恢复机制
-
-服务启动时扫描 `./data/rooms/` 目录下所有 `.json` 文件，逐一反序列化为 `GameRoom` 对象，恢复到内存中的房间集合。服务器意外崩溃后重启，玩家刷新浏览器即可继续未完成的牌局。
-
----
-
-## 9. 前端界面设计
-
-### 9.1 设计原则
-
-- 原生 HTML+CSS+JavaScript，零框架依赖
-- Flexbox 弹性布局，适应不同屏幕
-- 牌面颜色区分花色（万=红、条=绿、筒=蓝、风=紫、箭=金）
-- 操作按钮仅在合法时启用（灰色=不可用）
-
-### 9.2 页面结构 (game.html)
-
-```
-┌─────────────────────────────────────────┐
-│  顶部栏: 房间号 | 玩家列表 | 剩余牌数      │
-├─────────────────────────────────────────┤
-│          其他玩家区域（手牌背面朝上）        │
-│              弃牌区（最近弃牌高亮）          │
-│     [副露区]         我的手牌（点击出牌）     │
-├─────────────────────────────────────────┤
-│  吃牌选项栏（动态显示）                     │
-├─────────────────────────────────────────┤
-│  [开始] [胡] [杠] [碰] [吃] [过] [听牌提示] │
-└─────────────────────────────────────────┘
-```
-
-### 9.3 关键交互
-
-- **选牌出牌**：第一次点击选中（弹起），再次点击确认出牌
-- **吃牌选择**：多个吃法以按钮形式展示，点击即发送
-- **听牌提示**：点击后高亮哪些牌打出后能听
-- **快捷键**：H=胡 G=杠 P=碰 C=吃 空格=过 T=听牌提示
-
----
-
-## 10. 关键代码走读
-
-### 10.1 Card.java — 牌的编码
-
-每张牌有两个身份：
-- **显示身份**：花色 (WAN/TIAO/TONG/FENG/JIAN) + 数值
-- **算法身份**：0-33整数编码，用于胡牌算法中的快速索引
-
-`fromCode("3W")` 将前端的牌编码转为后端对象；`getCode()` 则反向转换。这种双向转换机制使得前后端 JSON 通信只传递简短字符串（如 "3W"、"DONG"）。
-
-### 10.2 GameService.java — 胡牌检测（详见第5节）
-
-`checkHu(List<Card> hand)` 方法约50行，是整个项目算法复杂度最高的部分。核心思路是在 `canFormMelds` 递归函数中，每次处理最小索引的牌，尝试将其作为刻子或顺子的首张——这保证了一定能找到合法拆解（如果存在的话）。
-
-### 10.3 GameWebSocketHandler.java — 消息路由（约700行）
-
-使用 Java 17 的 `switch` 表达式（箭头语法）将14种 `action` 路由到对应的处理方法。每个 `handle*` 方法完成：
-1. 参数验证
-2. 游戏逻辑执行（通过 GameService）
-3. 广播消息给房间内玩家
-4. 调用 RoomManager 保存状态
-
-### 10.4 RoomManager.java — 生命周期管理
-
-`@PostConstruct` 在服务启动时恢复所有房间，`@PreDestroy` 在服务关闭时保存所有房间。使用 `ScheduledExecutorService` 实现定时存档，`ConcurrentHashMap` 保证多线程安全。
-
----
-
-## 11. 测试方案
-
-### 11.1 自动测试
-
-`GameService.testAutoPlay(100)` 方法创建4个AI机器人，自动运行100局完整游戏：
-
-- **AI策略**：随机出牌（优先出孤张），有碰就碰，能胡就胡
-- **统计指标**：总局数、流局数、各玩家胡牌次数、平均摸牌数、总耗时
-- **调用方式**：`curl -X POST http://localhost:8080/api/test?games=100`
-- **测试结果示例**：100局中流局约15-30局（取决于随机因素），均在合理范围
-
-### 11.2 手动测试步骤
-
-1. 打开浏览器 A → http://localhost:8080 → 输入昵称 → 创建房间
-2. 打开浏览器 B（隐身窗口） → 输入房间号和昵称 → 加入房间
-3. 房主A点击"开始游戏"
-4. 轮流出牌，验证碰/杠/吃/胡功能
-5. 点击"听牌提示"验证听牌检测
-6. 关闭服务器再重启，验证房间状态恢复
 
 ---
 
